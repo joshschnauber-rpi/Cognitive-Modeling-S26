@@ -28,3 +28,4 @@ for num_points in [1e1, 1e2, 1e3, 1e4, 1e5, 1e6]:
     pi = approx_pi(num_points)
     error = abs(np.pi - pi)
     print(int(num_points), "pts: \tpi = ", pi, "\terror = ", error)
+    
