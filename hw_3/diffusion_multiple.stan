@@ -27,10 +27,8 @@ transformed data {
 
 parameters {
     // Each person has their own parameters
-    // Your code here: One of these parameters should index the
-    // difficulty of the task. Which one? You will then have to
-    // assume two parameters vectors, one for each condition. :)
-    array[J] real v;
+    array[J] real v_cond1;
+    array[J] real v_cond2;
     array[J] real<lower=0> a;
     array[J] real<lower=0, upper=1> beta;
     array[J] real<lower=0, upper=1> tau_raw;
@@ -46,27 +44,31 @@ transformed parameters {
 
 model {
     // Priors
-    // Your code here
+    for (j in 1:J) {
+        v_cond1[j] ~ normal(0, 1);
+        v_cond2[j] ~ normal(0, 1);
+        a[j] ~ lognormal(0, 1);
+        beta[j] ~ beta(5, 5);
+        tau_raw[j] ~ lognormal(0, 1);
+    }
 
     // Likelihood
     for (n in 1:N) {
         // Condition 1
         if (condition[n] == 1) {
             if (choice[n] == 1) {
-                // Your code here 
-                // Hint: use something like param[id[n]] 
-                // to index the person-specific parameters ;)
+                y[n] ~ wiener(a[id[n]], tau[id[n]], beta[id[n]], v_cond1[id[n]]);
             } else {
-                // Your code here
+                y[n] ~ wiener(a[id[n]], tau[id[n]], 1-beta[id[n]], -v_cond1[id[n]]);
             }
         }
 
         // Condition 2
         if (condition[n] == 2) {
             if (choice[n] == 1) {
-                // Your code here
+                y[n] ~ wiener(a[id[n]], tau[id[n]], beta[id[n]], v_cond2[id[n]]);
             } else {
-                // Your code here
+                y[n] ~ wiener(a[id[n]], tau[id[n]], 1-beta[id[n]], -v_cond2[id[n]]);
             }
         }
     }
