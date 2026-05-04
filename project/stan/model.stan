@@ -23,11 +23,11 @@ transformed data {
 
 
 parameters {
-    array[S] real<lower=0> subject_sigma;
-    vector[N] recall_latent;
+    array[S] real<lower=0> sigma_recall;
+    array[N] real recall;
 
-    real alpha;
-    real<lower=0> beta;
+    real correct_alpha;
+    real<lower=0> correct_beta;
 
     real mu_rt;
     real<lower=0> sigma_rt;
@@ -37,49 +37,20 @@ parameters {
 
 model {
     for( i in 1:S ) {
-        subject_sigma[i] ~ normal(1, 1);
+        sigma_recall[i] ~ normal(1, 1);
     }
 
     for( i in 1:N ) {
         int s_i = subject_index[i];
 
-        recall_latent[i] ~ normal(spatial_input_order[i], subject_sigma[s_i] * list_length[i]);
+        // The recall is expected to within some distance of actual
+        // Anc recall gets less accurate as the size of the list increases
+        recall[i] ~ normal(spatial_input_order[i], sigma_recall[s_i] * log(list_length[i]));
+        real dist = abs(recall[i] - spatial_input_order[i]);
 
-        real dist = abs(recall_latent[i] - spatial_input_order[i]);
-
-        correct[i] ~ bernoulli_logit(alpha - beta * dist);
+        // The lower the dist, the more likely it is to be correct
+        correct[i] ~ bernoulli_logit(correct_alpha - correct_beta * dist);
 
         rt[i] ~ lognormal(mu_rt + gamma * dist, sigma_rt);
     }
 }
-
-
-// parameters {
-//     array[S] real<lower=0> subject_sigma;
-// }
-
-// model {
-//     for( i in 1:S ) {
-//         subject_sigma[i] ~ normal(0.2, 0.1);
-//     }
-
-//     for( i in 1:N ) {
-//         // Get index of subject for this word
-//         int s_i = subject_index[i];
-
-//         //
-        
-//         // The recall is expected to within some distance of actual
-//         spatial_recall_order[i] ~ normal(spatial_input_order[i], subject_sigma[s_i] * list_length[i]);
-//         // If the recall and input are equal, the guess is correct
-//         distance_from_correct[i] ~ normal(abs(spatial_input_order[i] - spatial_recall_order[i]), 0);
-//         if( distance_from_correct[i] == 0 ) {
-//             correct[i] ~ normal(1, 0);
-//         }
-//         else {
-//             correct[i] ~ normal(0, 0);
-//         }
-
-//         // T
-//     }
-// }
