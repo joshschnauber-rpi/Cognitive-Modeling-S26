@@ -8,7 +8,6 @@ data {
     array[N] real<lower=1> spatial_input_order;
     // Results
     array[N] real<lower=1> spatial_recall_order;
-    array[N] int<lower=0, upper=1> correct;
     //array[N] int<lower=1> output_rank;
     array[N] real<lower=0> rt;
 }
@@ -16,9 +15,6 @@ data {
 
 parameters {
     real<lower=1e-6> sigma_recall;
-
-    real correct_alpha;
-    real correct_beta;
 
     real mu_rt;
     real<lower=1e-6> sigma_rt;
@@ -30,9 +26,6 @@ model {
     // Priors
     sigma_recall ~ lognormal(1, 0.5);
 
-    correct_alpha ~ normal(5, 3);
-    correct_beta ~ normal(10, 3);
-
     mu_rt ~ normal(0.5, 0.5);
     sigma_rt ~ lognormal(-1, 0.5);
     gamma_rt ~ normal(1, 1);
@@ -42,9 +35,6 @@ model {
         // The recall is expected to within some distance of actual
         spatial_recall_order[i] ~ normal(spatial_input_order[i], sigma_recall);
         real dist = abs(spatial_recall_order[i] - spatial_input_order[i]);
-
-        // The lower the dist, the more likely it is to be correct
-        correct[i] ~ bernoulli_logit(correct_alpha + correct_beta * (-dist));
 
         // The lower the dist, the faster the recall
         rt[i] ~ lognormal(mu_rt + gamma_rt * dist, sigma_rt);
