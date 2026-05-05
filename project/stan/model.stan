@@ -31,9 +31,9 @@ parameters {
 model {
     //sigma ~ normal(10,5);
     for( i in 1:8 ){
-        target += normal_lupdf(params[i][1] | 0, 2);  //alpha
-        target += normal_lupdf(params[i][2] | 1, 2);  //b1 (spatial)
-        target += normal_lupdf(params[i][3] | 1, 2);  //b2 (temporal)
+        target += normal_lupdf(params[i][1] | 1, 1);  //alpha
+        target += normal_lupdf(params[i][2] | 1, 1);  //b1 (spatial)
+        target += normal_lupdf(params[i][3] | 1, 1);  //b2 (temporal)
         //target += normal_lupdf(params[i][4] | 10, 10); //alpha for time
         //target += normal_lupdf(params[i][5] | 3, 5); //b1 for time
         //target += normal_lupdf(params[i][6] | 3, 5);  //b2 for time
@@ -47,66 +47,10 @@ model {
         //real bt1 = params[type[i]][5];
         //real bt2 = params[type[i]][6];
     
-        target += bernoulli_logit_lpmf(correct[i] | (params[type[i]][1] + params[type[i]][2]*(spatial_input_order[i]-6.5)*(spatial_input_order[i]-6.5) + params[type[i]][3]*temporal_input_pos[i]));
+        target += bernoulli_logit_lupmf(correct[i] | (params[type[i]][1] + params[type[i]][2]*pow((spatial_input_order[i]-6.5)/6.5,2) + params[type[i]][3]*(temporal_input_pos[i]-6.5)/6.5));
         //target += normal_lupdf(rt[i] | (params[type[i]][4] + params[type[i]][5]*spatial_input_order[i] + params[type[i]][6]*temporal_input_pos[i]), sigma);
     }
 
 
 }
 
-
-
-//model {
-//    for( i in 1:S ) {
-//        target += normal_lupdf(subject_sigma | 1, 2);
-//    }
-//
-//    sigma_rt ~ normal(1,1);
-//    mu_rt ~ normal(50,5);
-//    gamma ~ normal(1,1);
-//
-//    for( i in 1:N ) {
-//        int s_i = subject_index[i];
-//
-//        //recall_latent[i] ~ normal(spatial_input_order[i], subject_sigma * list_length[i]);
-//        target += normal_lupdf(recall_latent[i] | spatial_input_order[i], subject_sigma * list_length[i]);
-//        
-//        real dist = abs(recall_latent[i] - spatial_input_order[i]);
-//        
-//        target += bernoulli_logit_lpmf(correct[i] | alpha - beta * dist);
-//        //correct[i] ~ bernoulli_logit(alpha - beta * dist);
-//
-//        rt[i] ~ lognormal(mu_rt + gamma * dist, sigma_rt);
-//    }
-//}
-
-
-// parameters {
-//     array[S] real<lower=0> subject_sigma;
-// }
-
-// model {
-//     for( i in 1:S ) {
-//         subject_sigma[i] ~ normal(0.2, 0.1);
-//     }
-
-//     for( i in 1:N ) {
-//         // Get index of subject for this word
-//         int s_i = subject_index[i];
-
-//         //
-        
-//         // The recall is expected to within some distance of actual
-//         spatial_recall_order[i] ~ normal(spatial_input_order[i], subject_sigma[s_i] * list_length[i]);
-//         // If the recall and input are equal, the guess is correct
-//         distance_from_correct[i] ~ normal(abs(spatial_input_order[i] - spatial_recall_order[i]), 0);
-//         if( distance_from_correct[i] == 0 ) {
-//             correct[i] ~ normal(1, 0);
-//         }
-//         else {
-//             correct[i] ~ normal(0, 0);
-//         }
-
-//         // T
-//     }
-// }
