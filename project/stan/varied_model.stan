@@ -5,41 +5,82 @@ data {
     array[N] int<lower=1, upper=12> main_input_order; // The order being guessed (spatial, temporal)
     array[N] int<lower=1, upper=12> other_input_order; // The order not being guessed (temporal, spatial)
     // Results
-    array[N] real<lower=1, upper=12> recall_order; // The recall for the main_input_order
+    array[N] int<lower=1, upper=12> recall_order; // The recall for the main_input_order
 }
 
 
 parameters {
-    real<lower=1e-6> sigma_base_recall;
-    array[12] real<lower=(-sigma_base_recall+1e-6)> beta_other_order;
+    array[12] real<lower=0, upper=1> p_main_correct;
+    real<lower=1e-6> sigma_main_recall;
+    array[12] real<lower=1e-6> sigma_other_recall;
 }
 
 
 model {
     // Priors
-    sigma_base_recall ~ lognormal(0.5, 0.5);
-    for( i in 1:12 ) {
-        beta_other_order[i] ~ normal(0, 1);
-    }
+    p_main_correct ~ beta(2, 2);
+    sigma_main_recall ~ lognormal(0, 0.5);
+    sigma_other_recall ~ lognormal(-1, 0.5);
 
     // Likelihood
     for( i in 1:N ) {
-        // The recall is expected to within some distance of input order to recall
-        // But the accuracy may also depend on the position in the other ordering
-        real sigma_new = sigma_base_recall + beta_other_order[other_input_order[i]];
-        recall_order[i] ~ normal(main_input_order[i], sigma_new);
+        int main_pos = main_input_order[i];
+        int other_pos = other_input_order[i];
+        int recall_pos = recall_order[i];
+        
+        // If the guess was correct
+        // Certain probability of guessing correctly
+        if( recall_pos == main_pos ) {
+            target += log(p_main_correct[main_pos]);
+        }
+        // If the guess was not correct
+        // Guess randomly using a normal dist around the correct pos
+        else {
+            real sigma_new = exp(sigma_main_recall + sigma_other_recall[other_pos]);
+            real log_normal_density = log_diff_exp(
+                normal_lcdf(recall_pos + 0.5 | main_pos, sigma_new),
+                normal_lcdf(recall_pos - 0.5 | main_pos, sigma_new)
+            );
+            target += log((1 - p_main_correct[main_pos])) + log_normal_density;
+        }
     }
 }
 
 
 generated quantities {
-    array[N] real<lower=1, upper=12> recall_order_gen;
+    array[N] int<lower=1, upper=12> recall_order_gen;
 
-    for (i in 1:N) {
-        real sigma_new = sigma_base_recall + beta_other_order[other_input_order[i]];
-        // Sample until in range
-        real recall_order_f = normal_rng(main_input_order[i], sigma_new);
-        int recall_order_int = to_int(round(recall_order_f));
-        recall_order_gen[i] = fmin(fmax(recall_order_int, 1), 12);
+    // Precompute pdfs at all positions
+    array[12, 12] simplex[12] log_pdfs;
+    for( o_pos in 1:12 ) {
+        real sigma_new = exp(sigma_main_recall + sigma_other_recall[o_pos]);
+        for( m_pos in 1:12 ) {
+            vector[12] log_pdf;
+            for( p in 1:12 ) {
+                if( p == m_pos ) {
+                    log_pdf[p] = negative_infinity();
+                }
+                else {
+                    real log_normal_density = log_diff_exp(
+                        normal_lcdf(p + 0.5 | m_pos, sigma_new),
+                        normal_lcdf(p - 0.5 | m_pos, sigma_new)
+                    );
+                    log_pdf[p] = log_normal_density;
+                }
+            }
+            log_pdfs[o_pos, m_pos] = softmax(log_pdf);
+        }
+    }
+
+    for( i in 1:N ) {
+        int main_pos = main_input_order[i];
+        int other_pos = other_input_order[i];
+
+        if( bernoulli_rng(p_main_correct[main_pos]) ) {
+            recall_order_gen[i] = main_pos;
+        } 
+        else {
+            recall_order_gen[i] = categorical_rng(log_pdfs[other_pos, main_pos]);
+        }
     }
 }
